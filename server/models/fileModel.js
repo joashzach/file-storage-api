@@ -6,11 +6,6 @@ const fileSchema = new mongoose.Schema({
     required: true,
     trim: true,
   },
-  storedName: {
-    type: String,
-    required: true,
-    trim: true,
-  },
   mimeType: {
     type: String,
     required: true,
@@ -20,7 +15,7 @@ const fileSchema = new mongoose.Schema({
     type: Number,
     required: true,
   },
-  path: {
+  key: {
     type: String,
     required: true,
     trim: true,
