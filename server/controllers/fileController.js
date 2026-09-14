@@ -1,26 +1,68 @@
 const catchAsync = require("../utils/catchAsync");
 const {
-  uploadFileService,
+  generateUploadUrlService,
+  confirmUploadService,
+  generateDownloadUrlService,
   getAllFilesService,
   getFileService,
-  downloadFileService,
+
   deleteFileService,
 } = require("../services/fileService");
 
-// For storing File Metadata in DB
-exports.uploadFile = catchAsync(async (req, res) => {
-  const file = await uploadFileService(req.file, req.user._id);
+// GENERATE UPLOAD URL
+exports.generateUploadUrl = catchAsync(async (req, res) => {
+  const { originalName, mimeType } = req.body;
+
+  const result = await generateUploadUrlService(
+    { originalName, mimeType },
+    req.user._id,
+  );
 
   res.status(201).json({
-    message: "File uploaded successfully!",
+    message: "Upload URL generated successfully!",
+    data: result,
+  });
+});
+
+// SEND METADATA TO MONGODB
+exports.confirmUpload = catchAsync(async (req, res, next) => {
+  const { originalName, mimeType, size, key } = req.body;
+
+  const file = await confirmUploadService(
+    { originalName, mimeType, size, key },
+    req.user._id,
+  );
+
+  res.status(201).json({
+    message: "File upload confirmed successfully!",
+    data: file,
+  });
+});
+
+// GENERATE DOWNLOAD URL
+exports.generateDownloadUrl = catchAsync(async (req, res, next) => {
+  const result = await generateDownloadUrlService(req.params.id, req.user._id);
+
+  res.status(200).json({
+    message: "Download URL generated successfully!",
     data: {
-      file,
+      result,
     },
   });
 });
 
+// GET ALL FILES
 exports.getAllFiles = catchAsync(async (req, res, next) => {
   const files = await getAllFilesService(req.user._id);
+  if (files.length === 0) {
+  return res.status(200).json({
+    message: "You do not have any files!",
+    data: {
+      results: 0,
+      files: [],
+    },
+  });
+}
   res.status(200).json({
     message: "Received all files successfully!",
     data: {
@@ -30,6 +72,7 @@ exports.getAllFiles = catchAsync(async (req, res, next) => {
   });
 });
 
+// GET REQUESTED FILE
 exports.getFile = catchAsync(async (req, res, next) => {
   const { id } = req.params;
   const user = req.user._id;
@@ -41,23 +84,10 @@ exports.getFile = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.downloadFile = catchAsync(async (req, res, next) => {
-  const { file, fileStream } = await downloadFileService(
-    req.params.id,
-    req.user._id,
-  );
-
-  res.setHeader("Content-Type", file.mimeType);
-  res.setHeader(
-    "Content-Disposition",
-    `attachment; filename="${file.originalName}"`,
-  );
-
-  fileStream.pipe(res);
-});
-
+// DELETE REQUESTED FILE
 exports.deleteFile = catchAsync(async (req, res, next) => {
   await deleteFileService(req.params.id, req.user._id);
+
   res.status(200).json({
     message: "File deleted successfully!",
   });

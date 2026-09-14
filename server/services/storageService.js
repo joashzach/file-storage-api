@@ -4,40 +4,40 @@ const {
   GetObjectCommand,
   DeleteObjectCommand,
 } = require("@aws-sdk/client-s3");
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
 // UPLOAD OBJECT
-exports.uploadObject = async (fileData, userId) => {
-  const key = `users/${userId}/${Date.now()}-${fileData.originalname}`;
-  console.log(key);
+exports.generateUploadUrl = async (key, mimeType) => {
   const command = new PutObjectCommand({
     Bucket: process.env.AWS_BUCKET_NAME,
     Key: key,
-    Body: fileData.buffer,
-    ContentType: fileData.mimetype,
+    ContentType: mimeType,
   });
 
-  await s3.send(command);
-  return key;
+  const uploadUrl = await getSignedUrl(s3, command, {
+    expiresIn: 300,
+  });
+
+  return uploadUrl;
 };
 
 // GET OBJECT
-exports.getObject = async (key) => {
+exports.generateDownloadUrl = async (key) => {
   const command = new GetObjectCommand({
     Bucket: process.env.AWS_BUCKET_NAME,
     Key: key,
   });
 
-  const response = await s3.send(command);
-
-  return response.Body;
+  return await getSignedUrl(s3, command, {
+    expiresIn: 300,
+  });
 };
 
 // DELETE OBJECT
 exports.deleteObject = async (key) => {
-const command = new DeleteObjectCommand({
-  Bucket: process.env.AWS_BUCKET_NAME,
-  Key: key,
-})
-await s3.send(command);
+  const command = new DeleteObjectCommand({
+    Bucket: process.env.AWS_BUCKET_NAME,
+    Key: key,
+  });
+  await s3.send(command);
 };
-

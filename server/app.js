@@ -4,7 +4,6 @@ const morgan = require("morgan");
 
 const routes = require("./routes/index.js");
 const errorHandler = require("./middlewares/errorMiddleware");
-const upload = require('./middlewares/uploadMiddleware');
 
 const app = express();
 app.set("view engine", "ejs");

@@ -1,64 +1,73 @@
 const File = require("../models/fileModel");
-const apiError = require("../utils/apiError");
-const { uploadObject, getObject, deleteObject } = require("./storageService");
+const ApiError = require("../utils/apiError");
+const {
+  generateUploadUrl,
+  generateDownloadUrl,
+  deleteObject,
+} = require("./storageService");
 
-// UPLOAD FILE SERVICE
-exports.uploadFileService = async (fileData, userId) => {
-  const key = await uploadObject(fileData, userId);
+// GENERATE UPLOAD URL SERVICE
+exports.generateUploadUrlService = async (fileData, userId) => {
+  const key = `users/${userId}/${Date.now()}-${fileData.originalName}`;
 
+  const uploadUrl = await generateUploadUrl(key, fileData.mimeType);
+
+  return {key, uploadUrl};
+};
+
+// CONFIRM UPLOAD SERVICE 
+exports.confirmUploadService = async (fileData, userId) => {
   const file = await File.create({
-    originalName: fileData.originalname,
-    mimeType: fileData.mimetype,
+    originalName: fileData.originalName,
+    mimeType: fileData.mimeType,
     size: fileData.size,
-    key: key,
+    key: fileData.key,
     owner: userId,
-  });
+  })
 
   return file;
-};
+}
+
+// GENERATE DOWNLOAD URL SERVICE
+exports.generateDownloadUrlService = async (fileId, userId) => {
+  const file = await File.findById(fileId);
+
+  if(!file) {
+    throw new ApiError("This file does not exist!", 404)
+  }
+
+  if(file.owner.toString() !== userId.toString()) {
+    throw new ApiError("You do not have permission to access this file!", 403);
+  }
+
+  const downloadUrl = await generateDownloadUrl(file.key);
+
+  return downloadUrl;
+}
 
 // GET ALL FILES SERVICE
 exports.getAllFilesService = async (id) => {
   const files = await File.find({ owner: id });
-  if (files.length === 0) {
-    throw new apiError("You do not have any files!", 200);
-  }
+  
   return files;
 };
 
 // GET A FILE SERVICE
 exports.getFileService = async (id, user) => {
   const file = await File.findOne({ _id: id, owner: user });
-  if (!file) throw new apiError("This file does not exist!", 404);
+  if (!file) throw new ApiError("This file does not exist!", 404);
   return file;
-};
-
-// DOWNLOAD A FILE SERVICE
-exports.downloadFileService = async (fileId, userId) => {
-  const file = await File.findById(fileId);
-
-  if (!file) {
-    throw new apiError("This file does not exist!", 404);
-  }
-
-  if (file.owner.toString() !== userId.toString()) {
-    throw new apiError("You do not have permission to access this file!", 403);
-  }
-
-  const fileStream = await getObject(file.key);
-
-  return { file, fileStream };
 };
 
 // DELETE A FILE SERVICE
 exports.deleteFileService = async (fileId, userId) => {
   const file = await File.findById(fileId);
   if (!file) {
-    throw new apiError("This file does not exist!", 404);
+    throw new ApiError("This file does not exist!", 404);
   }
 
   if (file.owner.toString() !== userId.toString()) {
-    throw new apiError("You do not have permission to delete this file!", 403);
+    throw new ApiError("You do not have permission to delete this file!", 403);
   }
 
   // Delete file from S3
